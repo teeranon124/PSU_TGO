@@ -1,0 +1,188 @@
+<!-- Import Excel Modal -->
+<div class="modal-box max-w-2xl bg-white rounded-lg shadow-2xl">
+  <!-- Header -->
+  <div class="flex items-center justify-between border-b pb-4 mb-4">
+    <div class="flex items-center gap-3">
+      <div class="bg-blue-100 p-2 rounded-full">
+        <i data-feather="upload" class="w-6 h-6 text-blue-600"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-xl text-gray-800">Import ข้อมูลจาก Excel</h3>
+        <p class="text-sm text-gray-500">อัปโหลดไฟล์ Excel เพื่อนำเข้าข้อมูล Material</p>
+      </div>
+    </div>
+    <button onclick="document.getElementById('import-excel-modal').close()" class="btn btn-sm btn-circle btn-ghost hover:bg-gray-200">
+      <i data-feather="x" class="w-5 h-5"></i>
+    </button>
+  </div>
+
+  <!-- Form -->
+  <form 
+    hx-post="{{ url_for('emissions_scope.import_excel') }}" 
+    hx-encoding="multipart/form-data"
+    hx-target="body"
+    class="space-y-4"
+  >
+    <!-- Scope Selection -->
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text font-semibold text-gray-700">เลือก Scope</span>
+      </label>
+      <select name="scope_id" id="scope_select" class="select select-bordered w-full" required onchange="updateSubScopes()">
+        <option value="" disabled selected>กรุณาเลือก Scope</option>
+        <option value="all">🌐 ทั้งหมด (All Scopes)</option>
+        <option value="1">Scope 1 - การปล่อยทางตรง</option>
+        <option value="2">Scope 2 - การปล่อยก๊าซ(พลังงาน)</option>
+        <option value="3">Scope 3 - การปล่อยก๊าซ(อื่นๆ)</option>
+      </select>
+    </div>
+
+    <!-- Sub Scope Selection -->
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text font-semibold text-gray-700">เลือก Sub Scope</span>
+      </label>
+      <select name="sub_scope_id" id="sub_scope_select" class="select select-bordered w-full" required>
+        <option value="" disabled selected>กรุณาเลือก Scope ก่อน</option>
+      </select>
+    </div>
+
+    <!-- Year Selection -->
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text font-semibold text-gray-700">เลือกปี</span>
+      </label>
+      <select name="year" class="select select-bordered w-full" required>
+        {% for year in years %}
+        <option value="{{ year }}" {% if year == current_year %}selected{% endif %}>{{ year }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Sheet Name (Optional) -->
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text font-semibold text-gray-700">ชื่อ Sheet</span>
+        <span class="label-text-alt text-gray-500">(ค่าเริ่มต้น: Fr-04.1)</span>
+      </label>
+      <input 
+        type="text" 
+        name="sheet_name" 
+        value="Fr-04.1" 
+        placeholder="Fr-04.1" 
+        class="input input-bordered w-full"
+      />
+    </div>
+
+    <!-- File Upload -->
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text font-semibold text-gray-700">เลือกไฟล์ Excel</span>
+      </label>
+      <input 
+        type="file" 
+        name="excel_file" 
+        accept=".xlsx,.xls" 
+        class="file-input file-input-bordered w-full" 
+        required
+        onchange="displayFileName(this)"
+      />
+      <label class="label">
+        <span class="label-text-alt text-gray-500">รองรับไฟล์ .xlsx และ .xls</span>
+      </label>
+    </div>
+
+    <!-- Info Box -->
+    <div class="alert alert-info bg-blue-50 border-blue-200">
+      <i data-feather="info" class="w-5 h-5 text-blue-600"></i>
+      <div class="text-sm text-gray-700">
+        <p class="font-semibold mb-1">คำแนะนำ:</p>
+        <ul class="list-disc list-inside space-y-1">
+          <li>ข้อมูลในคอลัมน์ B คือชื่อ Material</li>
+          <li>ข้อมูลในคอลัมน์ D คือค่าที่จะนำเข้า (ข้อมูลรายปี)</li>
+          <li>ระบบจะ<strong>หารค่าด้วย 12</strong> เพื่อกระจายเป็นรายเดือน</li>
+          <li>แถวที่คอลัมน์ B ว่างจะถูกข้าม</li>
+          <li>สามารถเลือก "ทั้งหมด" เพื่อ import หลาย Scope พร้อมกัน</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex justify-end gap-2 pt-4 border-t">
+      <button 
+        type="button" 
+        onclick="document.getElementById('import-excel-modal').close()" 
+        class="btn btn-ghost hover:bg-gray-200"
+      >
+        ยกเลิก
+      </button>
+      <button 
+        type="submit" 
+        class="btn btn-primary"
+      >
+        <i data-feather="upload" class="w-4 h-4 mr-1"></i>
+        นำเข้าข้อมูล
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+  // Store scopes data from backend
+  const scopesData = {{ scopes | tojson }};
+
+  function updateSubScopes() {
+    const scopeSelect = document.getElementById('scope_select');
+    const subScopeSelect = document.getElementById('sub_scope_select');
+    const selectedScopeValue = scopeSelect.value;
+    
+    // Clear existing options
+    subScopeSelect.innerHTML = '<option value="" disabled selected>กรุณาเลือก Sub Scope</option>';
+    
+    // ถ้าเลือก "all" ให้แสดงเฉพาะ "ทั้งหมด" และปิดการเลือก
+    if (selectedScopeValue === 'all') {
+      const allOption = document.createElement('option');
+      allOption.value = 'all';
+      allOption.textContent = '🌐 ทั้งหมด (All Sub Scopes)';
+      allOption.selected = true;
+      subScopeSelect.appendChild(allOption);
+      subScopeSelect.disabled = true;
+      return;
+    }
+    
+    // เปิดการเลือก Sub Scope
+    subScopeSelect.disabled = false;
+    
+    const selectedScope = parseInt(selectedScopeValue);
+    
+    // เพิ่มตัวเลือก "ทั้งหมด"
+    const allOption = document.createElement('option');
+    allOption.value = 'all';
+    allOption.textContent = `🌐 ทั้งหมด Sub Scopes ของ Scope ${selectedScope}`;
+    subScopeSelect.appendChild(allOption);
+    
+    // Filter scopes by selected main scope
+    const filteredScopes = scopesData.filter(s => s.ghg_scope === selectedScope);
+    
+    // Add options
+    filteredScopes.forEach(scope => {
+      const option = document.createElement('option');
+      option.value = scope.ghg_sup_scope;
+      option.textContent = `${scope.ghg_scope}.${scope.ghg_sup_scope} - ${scope.ghg_name}`;
+      subScopeSelect.appendChild(option);
+    });
+  }
+
+  function displayFileName(input) {
+    if (input.files && input.files[0]) {
+      console.log('Selected file:', input.files[0].name);
+    }
+  }
+
+  // Re-init feather icons after modal loads
+  setTimeout(() => {
+    if (typeof feather !== 'undefined') {
+      feather.replace();
+    }
+  }, 100);
+</script>

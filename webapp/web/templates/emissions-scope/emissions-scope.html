@@ -132,6 +132,16 @@
               <i data-feather="download" class="w-4 h-4 mr-1"></i> Excel Mapping
             </a>
             {% endif %}
+            {% if has_permission("แก้ไขข้อมูลการปล่อย") %}
+            <button 
+              hx-get="{{ url_for('emissions_scope.load_import_modal') }}"
+              hx-target="#import-excel-modal"
+              onclick="document.getElementById('import-excel-modal').showModal()"
+              class="btn btn-info"
+            >
+              <i data-feather="upload" class="w-4 h-4 mr-1"></i> Import Excel
+            </button>
+            {% endif %}
           </div>
         </div>
       </div>
@@ -403,5 +413,10 @@
     window.location.href = url;
   }
 </script>
+
+<!-- Import Excel Modal -->
+<dialog id="import-excel-modal" class="modal">
+  <!-- Modal content will be loaded here via HTMX -->
+</dialog>
 
 {% endblock content %}
